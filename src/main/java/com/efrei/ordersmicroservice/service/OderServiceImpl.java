@@ -1,18 +1,20 @@
 package com.efrei.ordersmicroservice.service;
 
+import com.efrei.ordersmicroservice.exception.custom.BadOrderException;
 import com.efrei.ordersmicroservice.exception.custom.OrderNotFoundException;
 import com.efrei.ordersmicroservice.exception.custom.WrongUserRoleException;
-import com.efrei.ordersmicroservice.model.CustomerInfos;
-import com.efrei.ordersmicroservice.model.Localisation;
-import com.efrei.ordersmicroservice.model.ClientOrder;
-import com.efrei.ordersmicroservice.model.UserRole;
+import com.efrei.ordersmicroservice.model.*;
 import com.efrei.ordersmicroservice.model.dto.OrderToCreate;
+import com.efrei.ordersmicroservice.model.dto.Product;
+import com.efrei.ordersmicroservice.provider.catalog.CatalogProvider;
 import com.efrei.ordersmicroservice.repository.OrderRepository;
 import com.efrei.ordersmicroservice.utils.JwtUtils;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class OderServiceImpl implements OrderService {
@@ -21,9 +23,12 @@ public class OderServiceImpl implements OrderService {
 
     private final JwtUtils jwtUtils;
 
-    public OderServiceImpl(OrderRepository orderRepository, JwtUtils jwtUtils) {
+    private final CatalogProvider catalogProvider;
+
+    public OderServiceImpl(OrderRepository orderRepository, JwtUtils jwtUtils, CatalogProvider catalogProvider) {
         this.orderRepository = orderRepository;
         this.jwtUtils = jwtUtils;
+        this.catalogProvider = catalogProvider;
     }
 
     @Override
@@ -31,11 +36,19 @@ public class OderServiceImpl implements OrderService {
         if(!jwtUtils.validateJwt(bearerToken.substring(7), UserRole.CUSTOMER)){
             throw new WrongUserRoleException("User role does not gives him rights to call this endpoint");
         }
+
+        if(orderToCreate.getCustomerInfos().name() == null){
+            throw new BadOrderException("Order miss a user name");
+        }
+
+        if(orderToCreate.getCustomerInfos().email() == null){
+            throw new BadOrderException("Order miss an email");
+        }
+
         ClientOrder clientOrder = mapOrderToCreateIntoOrder(orderToCreate);
         clientOrder.setPlacedAt(Instant.now().toEpochMilli());
         clientOrder.getCustomerInfos().setUserId(jwtUtils.getUserIdFromJWT(bearerToken.substring(7)));
-        //TODO : Appel Catalog pour calculer le total price
-        clientOrder.setTotalPrice(100);
+        clientOrder.setTotalPrice(calculateTotalPrice(bearerToken, orderToCreate.getProductCommands()));
         clientOrder.setPaidByCustomer(false);
         //TODO : Update Session total price
         return orderRepository.save(clientOrder);
@@ -98,5 +111,26 @@ public class OderServiceImpl implements OrderService {
         Localisation localisation = new Localisation("bowlingId", 3);
         clientOrder.setLocalisation(localisation);
         return clientOrder;
+    }
+
+    private float calculateTotalPrice(String bearerToken, List<ProductCommand> productCommands) {
+        List<String> productIds = productCommands.stream()
+                .map(ProductCommand::productId)
+                .collect(Collectors.toList());
+
+        List<Product> products = catalogProvider.getProductByIds(bearerToken, productIds);
+
+        Map<String, Product> productMap = products.stream()
+                .collect(Collectors.toMap(Product::id, product -> product));
+
+        float totalPrice = 0;
+        for (ProductCommand command : productCommands) {
+            Product product = productMap.get(command.productId());
+            if (product != null) {
+                totalPrice += product.price() * command.quantity();
+            }
+        }
+
+        return totalPrice;
     }
 }
