@@ -39,9 +39,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler({CatalogMicroserviceException.class, BowlingParkMicroserviceException.class})
     protected ResponseEntity<Object> handleMicroserviceCallError(
             RuntimeException ex, WebRequest request) {
-        String bodyOfResponse = ex.getMessage();
-        return handleExceptionInternal(ex, bodyOfResponse,
-                new HttpHeaders(), HttpStatus.INTERNAL_SERVER_ERROR, request);
+        String bodyOfResponse = ex.getMessage() + "\n" + ex.getCause();
+        return handleExceptionInternal(ex, bodyOfResponse, new HttpHeaders(), HttpStatus.INTERNAL_SERVER_ERROR, request);
     }
 
 
