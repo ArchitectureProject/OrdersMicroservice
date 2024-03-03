@@ -1,8 +1,6 @@
 package com.efrei.ordersmicroservice.exception;
 
-import com.efrei.ordersmicroservice.exception.custom.JWTException;
-import com.efrei.ordersmicroservice.exception.custom.OrderNotFoundException;
-import com.efrei.ordersmicroservice.exception.custom.WrongUserRoleException;
+import com.efrei.ordersmicroservice.exception.custom.*;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,4 +35,14 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return handleExceptionInternal(ex, bodyOfResponse,
                 new HttpHeaders(), HttpStatus.NOT_FOUND, request);
     }
+
+    @ExceptionHandler({CatalogMicroserviceException.class, BowlingParkMicroserviceException.class})
+    protected ResponseEntity<Object> handleMicroserviceCallError(
+            RuntimeException ex, WebRequest request) {
+        String bodyOfResponse = ex.getMessage();
+        return handleExceptionInternal(ex, bodyOfResponse,
+                new HttpHeaders(), HttpStatus.INTERNAL_SERVER_ERROR, request);
+    }
+
+
 }

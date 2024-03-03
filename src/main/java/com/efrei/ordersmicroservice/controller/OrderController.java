@@ -34,7 +34,7 @@ public class OrderController {
     }
 
     @GetMapping("/order/byBowlingPark")
-    public List<ClientOrder> getOrdersByBowlingParkManager(@RequestHeader(name = "Authorization") String bearerToken){
+    public List<ClientOrder> getOrdersByUserBowlingPark(@RequestHeader(name = "Authorization") String bearerToken){
         return orderService.getOrdersByUserBowlingPark(bearerToken);
     }
 

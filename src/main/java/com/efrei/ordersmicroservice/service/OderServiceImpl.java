@@ -4,8 +4,10 @@ import com.efrei.ordersmicroservice.exception.custom.BadOrderException;
 import com.efrei.ordersmicroservice.exception.custom.OrderNotFoundException;
 import com.efrei.ordersmicroservice.exception.custom.WrongUserRoleException;
 import com.efrei.ordersmicroservice.model.*;
+import com.efrei.ordersmicroservice.model.dto.BowlingPark;
 import com.efrei.ordersmicroservice.model.dto.OrderToCreate;
 import com.efrei.ordersmicroservice.model.dto.Product;
+import com.efrei.ordersmicroservice.provider.bowling.BowlingParkProvider;
 import com.efrei.ordersmicroservice.provider.catalog.CatalogProvider;
 import com.efrei.ordersmicroservice.repository.OrderRepository;
 import com.efrei.ordersmicroservice.utils.JwtUtils;
@@ -25,10 +27,13 @@ public class OderServiceImpl implements OrderService {
 
     private final CatalogProvider catalogProvider;
 
-    public OderServiceImpl(OrderRepository orderRepository, JwtUtils jwtUtils, CatalogProvider catalogProvider) {
+    private final BowlingParkProvider bowlingParkProvider;
+
+    public OderServiceImpl(OrderRepository orderRepository, JwtUtils jwtUtils, CatalogProvider catalogProvider, BowlingParkProvider bowlingParkProvider) {
         this.orderRepository = orderRepository;
         this.jwtUtils = jwtUtils;
         this.catalogProvider = catalogProvider;
+        this.bowlingParkProvider = bowlingParkProvider;
     }
 
     @Override
@@ -45,7 +50,7 @@ public class OderServiceImpl implements OrderService {
             throw new BadOrderException("Order miss an email");
         }
 
-        ClientOrder clientOrder = mapOrderToCreateIntoOrder(orderToCreate);
+        ClientOrder clientOrder = mapOrderToCreateIntoOrder(bearerToken, orderToCreate);
         clientOrder.setPlacedAt(Instant.now().toEpochMilli());
         clientOrder.getCustomerInfos().setUserId(jwtUtils.getUserIdFromJWT(bearerToken.substring(7)));
         clientOrder.setTotalPrice(calculateTotalPrice(bearerToken, orderToCreate.getProductCommands()));
@@ -76,9 +81,8 @@ public class OderServiceImpl implements OrderService {
         if(!jwtUtils.validateJwt(bearerToken.substring(7), UserRole.AGENT)){
             throw new WrongUserRoleException("User role does not gives him rights to call this endpoint");
         }
-        //TODO : Get Bowling Park Id from agent's UserId
-        String bowlingParkId = "bowlingParkId";
-        return orderRepository.findByLocalisationBowlingParkId(bowlingParkId);
+        List<BowlingPark> bowlingPark = bowlingParkProvider.getBowlingParkByManagerId(bearerToken, jwtUtils.getUserIdFromJWT(bearerToken.substring(7)));
+        return orderRepository.findByLocalisationBowlingParkId(bowlingPark.get(0).id());
     }
 
     @Override
@@ -99,7 +103,7 @@ public class OderServiceImpl implements OrderService {
         orderRepository.deleteById(orderId);
     }
 
-    private ClientOrder mapOrderToCreateIntoOrder(OrderToCreate orderToCreate){
+    private ClientOrder mapOrderToCreateIntoOrder(String bearerToken, OrderToCreate orderToCreate){
         ClientOrder clientOrder = new ClientOrder();
         CustomerInfos customerInfos = new CustomerInfos();
         customerInfos.setEmail(orderToCreate.getCustomerInfos().email());
@@ -107,8 +111,8 @@ public class OderServiceImpl implements OrderService {
         customerInfos.setPhoneNumber(orderToCreate.getCustomerInfos().phoneNumber());
         clientOrder.setCustomerInfos(customerInfos);
         clientOrder.setProductCommands(orderToCreate.getProductCommands());
-        //TODO : Appel BowlingPark pour avoir une fonction qui donne l'objet localisation en fonction de son QRCode
-        Localisation localisation = new Localisation("bowlingId", 3);
+        Localisation localisation = bowlingParkProvider
+                .getBowlingParkAlleyFromQrCode(bearerToken, orderToCreate.getAlleyQrCode());
         clientOrder.setLocalisation(localisation);
         return clientOrder;
     }

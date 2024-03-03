@@ -11,6 +11,8 @@ public class Properties {
 
     private String catalogMicroserviceBaseUrl;
 
+    private String bowlingMicroserviceBaseUrl;
+
     public String getJwkUrl() {
         return jwkUrl;
     }
@@ -25,5 +27,13 @@ public class Properties {
 
     public void setCatalogMicroserviceBaseUrl(String catalogMicroserviceBaseUrl) {
         this.catalogMicroserviceBaseUrl = catalogMicroserviceBaseUrl;
+    }
+
+    public String getBowlingMicroserviceBaseUrl() {
+        return bowlingMicroserviceBaseUrl;
+    }
+
+    public void setBowlingMicroserviceBaseUrl(String bowlingMicroserviceBaseUrl) {
+        this.bowlingMicroserviceBaseUrl = bowlingMicroserviceBaseUrl;
     }
 }
